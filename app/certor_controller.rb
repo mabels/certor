@@ -25,42 +25,47 @@ class CertorController
     res = { "req" => JSON.parse(body) }
     # The CSR is base64 encoded inside the json
     # Restore the original CSR to a Tempfile
-    #puts ">>>>#{res['req']['csr']}<<<<"
+    puts ">>>>f"
     csr = Tempfile.new(res['req']['hostname'])
     csr.write(res['req']['csr'])
     csr.close
     # Want to see if the CSR matches the Hostname
+    puts ">>>>e"
     unless get_subject(csr.path) == res['req']['hostname']
       return [500, {
         'Content-Type' => 'application/json'
       }, [
-        {"error" => "CSR Subject #{get_subject(csr.path)} does not match hostname #{res['req']['hostname']}"}.to_json
+        JSON.generate({"error" => "CSR Subject #{get_subject(csr.path)} does not match hostname #{res['req']['hostname']}"})
         ]
       ]
     end
+    puts ">>>>d"
     # TODO: Have a function to send signed request to the acme-api for getting the Challenge Token
     #puts %x( env )
     #puts %x( pwd )
     # staging CA="https://acme-staging.api.letsencrypt.org/directory"
     cert = %x( ./letsencrypt/letsencrypt.sh --signcsr #{csr.path} --challenge dns-01 --domain #{res['req']['hostname']} --hook ./manual_hook.rb 2>&1 )
+    puts ">>>>c"
     unless $? == 0
       return [500, {
         'Content-Type' => 'application/json'
       }, [
-        {"error" => "got an error:#{cert}"}
+        JSON.generate({"error" => "got an error:#{cert}"})
         ]
       ]
     end
+    puts ">>>>b"
     #puts cert.inspect
     # Cleanup
     csr.unlink
+    puts ">>>>a"
     [200, {
       'Content-Type' => 'application/json'
-    }, [{
+    }, [JSON.generate({
       "hostname" => res['req']['hostname'],
       "csr" => res['req']['csr'],
       "cert" => cert
-    }.to_json]]
+    })]]
   end
 
   def self.action_delete(req)
